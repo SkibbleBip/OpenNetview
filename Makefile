@@ -1,6 +1,7 @@
 CXX = mipsel-linux-gnu-g++
 
-CXXFLAGS = -O2 \
+CXXFLAGS = --sysroot=$(SYSROOT) \
+			-O2 \
            -fPIC \
            -Wa,-KPIC \
            -fno-stack-protector \
@@ -38,7 +39,7 @@ ifeq ($(DEBUG),1)
 endif
 
 TARGET = main
-SRCS = entry.S main.cpp
+SRCS = entry.S main.cpp HW_init.cpp
 
 all: $(TARGET)
 

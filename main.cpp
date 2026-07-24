@@ -1,8 +1,9 @@
 #include <cstdio>
 #include <cstdlib>
 #include <iostream>
+#include "stubs.hpp"
 
-#include "config_payload.h"
+#include "HW_init.hpp"
 
 #include "imp/imp_system.h"
 
@@ -15,11 +16,17 @@ int main(int argc, char** argv)
     std::cout << "Starting OpenNetview camera" << std::endl;
 
 
+        // write the magic config payload to the driver to init the hardware
+        int ret = HW_config_init();
+        if(ret < 0){
+                std::cerr << "Failed to init the hardware driver: " << ret << std::endl;
+                return -1;
+        }
 
-    int ret = IMP_System_Init();
+        ret = IMP_System_Init();
 
     if (ret < 0) {
-        std::cout << "IMP_System_Init failed: " << ret << std::endl;
+        std::cerr << "IMP_System_Init failed: " << ret << std::endl;
         return -1;
     }
 
@@ -29,7 +36,7 @@ int main(int argc, char** argv)
     IMPVersion versionInfo = {'\0'};
     ret = IMP_System_GetVersion(&versionInfo);
     if(ret < 0){
-        std::cout << "Failed to get IMP version" << std::endl;
+        std::cerr << "Failed to get IMP version" << std::endl;
         return -1;
     }
     std::cout << "IMP Version: " << versionInfo.aVersion << std::endl;
