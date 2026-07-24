@@ -1,0 +1,3 @@
+[submodule "openimp"]
+	path = openimp
+	url = https://github.com/opensensor/openimp.git
