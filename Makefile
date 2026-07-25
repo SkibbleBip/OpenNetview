@@ -39,7 +39,7 @@ ifeq ($(DEBUG),1)
 endif
 
 TARGET = main
-SRCS = entry.S main.cpp HW_init.cpp
+SRCS = entry.S main.cpp HW_init.cpp ISP_init.cpp Channel_init.cpp
 
 all: $(TARGET)
 

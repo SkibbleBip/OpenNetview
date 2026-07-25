@@ -4,6 +4,8 @@
 #include "stubs.hpp"
 
 #include "HW_init.hpp"
+#include "ISP_init.hpp"
+#include "Channel_init.hpp"
 
 #include "imp/imp_system.h"
 
@@ -40,6 +42,18 @@ int main(int argc, char** argv)
         return -1;
     }
     std::cout << "IMP Version: " << versionInfo.aVersion << std::endl;
+
+
+        ISP_init();
+
+        Channel_init();
+
+
+        ISP_close();
+        Channel_close();
+
+
+
 
 
     IMP_System_Exit();
