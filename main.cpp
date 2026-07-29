@@ -1,61 +1,79 @@
+#include "stubs.hpp"
 #include <cstdio>
 #include <cstdlib>
+#include <fstream>
 #include <iostream>
-#include "stubs.hpp"
 
+#include "Encoder.hpp"
+#include "Frame.hpp"
 #include "HW_init.hpp"
-#include "ISP_init.hpp"
-#include "Channel_init.hpp"
 
 #include "imp/imp_system.h"
 
+int main(int argc, char **argv) {
+  std::ios_base::sync_with_stdio(false);
+  // fix for broken stdio in the uClib provided by the camera's sysroot
 
-int main(int argc, char** argv)
-{
-    std::ios_base::sync_with_stdio(false);
-    // fix for broken stdio in the uClib provided by the camera's sysroot
+  std::cout << "Starting OpenNetview camera" << std::endl;
 
-    std::cout << "Starting OpenNetview camera" << std::endl;
+  // write the magic config payload to the driver to init the hardware
+  int ret = HW_config_init();
+  if (ret < 0) {
+    std::cerr << "Failed to init the hardware driver: " << ret << std::endl;
+    return -1;
+  }
 
+  Encoder encoder(0);
 
-        // write the magic config payload to the driver to init the hardware
-        int ret = HW_config_init();
-        if(ret < 0){
-                std::cerr << "Failed to init the hardware driver: " << ret << std::endl;
-                return -1;
-        }
+  IMPVersion versionInfo = {'\0'};
+  ret = IMP_System_GetVersion(&versionInfo);
+  if (ret < 0) {
+    std::cerr << "Failed to get IMP version" << std::endl;
+    return -1;
+  }
+  std::cout << "IMP Version: " << versionInfo.aVersion << std::endl;
 
-        ret = IMP_System_Init();
+  FILE *out = fopen("output.h264", "wb");
+  for (int j = 0; j < 30; j++)
+    if (encoder.getError() == 0) {
+      // do stuff
+      std::cout << "it worked" << std::endl;
 
-    if (ret < 0) {
-        std::cerr << "IMP_System_Init failed: " << ret << std::endl;
-        return -1;
+      StreamReply reply = encoder.getStream();
+
+      // std::string path = "test" + std::to_string(j) + ".h264";
+      // FILE *out = fopen(path.c_str(), "wb");
+
+      for (int idx = 0; idx < reply.streamData.packCount; idx++) {
+        custom_IMPEncoderPack *pack = &reply.streamData.pack[idx];
+        /*printf("physical %p virtual %p length %d timestamp %ld frameEnd %d
+        datatype %d\n", pack->phyAddr, pack->virAddr, pack->length,
+        pack->timestamp, pack->frameEnd, pack->dataType
+        );*/
+
+        fwrite((void *)pack->virAddr, 1, pack->length, out);
+      }
+
+      encoder.releaseStream(&reply);
     }
 
-    std::cout << "OpenNetview initialised" << std::endl;
+  fclose(out);
+
+  /*Frame frame = getFrame();
 
 
-    IMPVersion versionInfo = {'\0'};
-    ret = IMP_System_GetVersion(&versionInfo);
-    if(ret < 0){
-        std::cerr << "Failed to get IMP version" << std::endl;
-        return -1;
-    }
-    std::cout << "IMP Version: " << versionInfo.aVersion << std::endl;
+  if(frame.getError()){
+          std::cerr << "Failed to get frame: " << frame.getError() << std::endl;
+  }
+  else{
+          custom_IMPFrameInfo* frameInfo = frame.getFrameInfo();
+          std::ofstream out("Frame.data", std::ios::binary);
 
+          out.write(reinterpret_cast<char *>(frameInfo->virAddr),
+  frameInfo->size);
+  }
 
-        ISP_init();
+  freeFrame(frame);*/
 
-        Channel_init();
-
-
-        ISP_close();
-        Channel_close();
-
-
-
-
-
-    IMP_System_Exit();
-    return 0;
+  return 0;
 }
