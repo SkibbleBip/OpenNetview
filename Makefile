@@ -1,9 +1,10 @@
 CXX = mipsel-linux-gnu-g++
 
 CXXFLAGS = --sysroot=$(SYSROOT) \
-			-O2 \
+	   -O2 \
            -fPIC \
            -Wa,-KPIC \
+           -std=c++17 \
            -fno-stack-protector \
            -fno-use-cxa-atexit \
            -fno-exceptions \
@@ -39,7 +40,7 @@ ifeq ($(DEBUG),1)
 endif
 
 TARGET = main
-SRCS = entry.S main.cpp HW_init.cpp ISP_init.cpp Channel_init.cpp Frame.cpp Encoder.cpp
+SRCS = entry.S main.cpp HW_init.cpp ISP_init.cpp Channel_init.cpp Frame.cpp Encoder.cpp Webserver.cpp
 
 all: $(TARGET)
 

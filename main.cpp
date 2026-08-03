@@ -1,4 +1,5 @@
 #include "stubs.hpp"
+#include <arpa/inet.h>
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
@@ -7,6 +8,7 @@
 #include "Encoder.hpp"
 #include "Frame.hpp"
 #include "HW_init.hpp"
+#include "Webserver.hpp"
 
 #include "imp/imp_system.h"
 
@@ -33,11 +35,21 @@ int main(int argc, char **argv) {
   }
   std::cout << "IMP Version: " << versionInfo.aVersion << std::endl;
 
-  FILE *out = fopen("output.h264", "wb");
-  for (int j = 0; j < 30; j++)
+  const char *ip_str = "192.168.0.123";
+  struct in_addr my_addr = {0};
+
+  ret = inet_pton(AF_INET, ip_str, &my_addr);
+  if (ret != 1) {
+    std::cerr << "it broke" << std::endl;
+    return 1;
+  }
+
+  VideoStream vidStream(H264_PORT, my_addr);
+
+  for (int j = 0; j < 30; j = 0)
     if (encoder.getError() == 0) {
       // do stuff
-      std::cout << "it worked" << std::endl;
+      // std::cout << "it worked" << std::endl;
 
       StreamReply reply = encoder.getStream();
 
@@ -50,14 +62,13 @@ int main(int argc, char **argv) {
         datatype %d\n", pack->phyAddr, pack->virAddr, pack->length,
         pack->timestamp, pack->frameEnd, pack->dataType
         );*/
+        ret = vidStream.sendPacket(pack);
 
-        fwrite((void *)pack->virAddr, 1, pack->length, out);
+        // fwrite((void *)pack->virAddr, 1, pack->length, out);
       }
 
       encoder.releaseStream(&reply);
     }
-
-  fclose(out);
 
   /*Frame frame = getFrame();
 

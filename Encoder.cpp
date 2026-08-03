@@ -186,15 +186,17 @@ Encoder::Encoder(int channelID) {
   encoderAttr.rcAttr.outFrmRate.frmRateNum = 25;
   encoderAttr.rcAttr.outFrmRate.frmRateDen = 1;
 
-  encoderAttr.rcAttr.maxGop = 25;
+  //  encoderAttr.rcAttr.maxGop = 25;
 
   encoderAttr.rcAttr.attrRcMode.rcMode = IMP_ENC_RC_MODE_CBR;
+  encoderAttr.rcAttr.maxGop = 25;
 
-  encoderAttr.rcAttr.attrRcMode.attrH264Cbr.maxQp = 30;
-  encoderAttr.rcAttr.attrRcMode.attrH264Cbr.minQp = 10;
-  encoderAttr.rcAttr.attrRcMode.attrH264Cbr.outBitRate = 12000; // kbps
-  encoderAttr.rcAttr.attrRcMode.attrH264Cbr.frmQPStep = 2;
-  encoderAttr.rcAttr.attrRcMode.attrH264Cbr.gopQPStep = 15;
+  encoderAttr.rcAttr.attrRcMode.attrH264Cbr.outBitRate = 6000;
+
+  encoderAttr.rcAttr.attrRcMode.attrH264Cbr.maxQp = 40;
+  encoderAttr.rcAttr.attrRcMode.attrH264Cbr.minQp = 18;
+  encoderAttr.rcAttr.attrRcMode.attrH264Cbr.frmQPStep = 3;
+  encoderAttr.rcAttr.attrRcMode.attrH264Cbr.gopQPStep = 5;
 
   // hack to get the proprietary imp lib to accept my customised
   // encoder attributes
