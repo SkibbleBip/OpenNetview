@@ -33,6 +33,7 @@ LDFLAGS = -nodefaultlibs \
           $(SYSROOT)/lib/libc.so.0 \
           $(SYSROOT)/lib/libstdc++.so.6 \
           $(SYSROOT)/lib/libgcc_s.so.1 \
+          $(SYSROOT)/lib/libpthread.so.0 \
           -Wl,--dynamic-linker,/lib/ld-uClibc.so.0
 
 ifeq ($(DEBUG),1)

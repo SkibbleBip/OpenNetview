@@ -35,40 +35,56 @@ int main(int argc, char **argv) {
   }
   std::cout << "IMP Version: " << versionInfo.aVersion << std::endl;
 
-  const char *ip_str = "192.168.0.123";
-  struct in_addr my_addr = {0};
+  CommandServer command_server;
 
-  ret = inet_pton(AF_INET, ip_str, &my_addr);
-  if (ret != 1) {
-    std::cerr << "it broke" << std::endl;
+  if (command_server.getError() != 0) {
+    std::cerr << "Failed to set up Command server: "
+              << command_server.getError() << std::endl;
     return 1;
   }
 
-  VideoStream vidStream(H264_PORT, my_addr);
+  do {
+    std::cout << "Waiting for connection..." << std::endl;
+    struct in_addr my_addr = command_server.waitUntilConnected();
+    char ip_str[INET_ADDRSTRLEN] = {0};
+    inet_ntop(AF_INET, &(my_addr), ip_str, INET_ADDRSTRLEN);
+    std::cout << "Connected to user " << ip_str << std::endl;
 
-  for (int j = 0; j < 30; j = 0)
-    if (encoder.getError() == 0) {
-      // do stuff
-      // std::cout << "it worked" << std::endl;
-
-      StreamReply reply = encoder.getStream();
-
-      // std::string path = "test" + std::to_string(j) + ".h264";
-      // FILE *out = fopen(path.c_str(), "wb");
-
-      for (int idx = 0; idx < reply.streamData.packCount; idx++) {
-        custom_IMPEncoderPack *pack = &reply.streamData.pack[idx];
-        /*printf("physical %p virtual %p length %d timestamp %ld frameEnd %d
-        datatype %d\n", pack->phyAddr, pack->virAddr, pack->length,
-        pack->timestamp, pack->frameEnd, pack->dataType
-        );*/
-        ret = vidStream.sendPacket(pack);
-
-        // fwrite((void *)pack->virAddr, 1, pack->length, out);
-      }
-
-      encoder.releaseStream(&reply);
+    ret = command_server.getError();
+    if (ret != 1) {
+      std::cerr << "it broke" << std::endl;
+      return 1;
     }
+
+    VideoStream vidStream(H264_PORT, my_addr);
+
+    while (command_server.isConnected()) {
+      if (encoder.getError() == 0) {
+        // do stuff
+
+        StreamReply reply = encoder.getStream();
+
+        for (int idx = 0; idx < reply.streamData.packCount; idx++) {
+          custom_IMPEncoderPack *pack = &reply.streamData.pack[idx];
+
+          ret = vidStream.sendPacket(pack);
+        }
+
+        encoder.releaseStream(&reply);
+      } else {
+        std::cerr << "Encoder failed: " << encoder.getError() << std::endl;
+        break;
+      }
+    } // while connected
+    std::cout << "No longer connected" << std::endl;
+
+    ret = command_server.getError();
+    if (ret != 0) {
+      std::cerr << "Command server failed with the error: " << ret << std::endl;
+      break;
+    }
+
+  } while (true);
 
   /*Frame frame = getFrame();
 
