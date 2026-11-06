@@ -9,6 +9,7 @@
 
 #define H264_PORT 6969
 #define COMMAND_PORT 52000
+#define PAN_TILT_FILE "/proc/nv_driver_lite/pan_tilt"
 
 struct RTPHeader {
   uint8_t vpxcc;
@@ -48,14 +49,17 @@ private:
   pthread_t m_commandThread = {};
   pthread_rwlock_t m_rwlock = {};
 
+  int m_pan_tilt_fd = 0;
+
   struct ms_cmd_thread_args {
     bool *isRunningPtr = nullptr;
     pthread_rwlock_t *rwlockPtr = nullptr;
     int client_fd;
+    int pant_tilt_fd;
   };
   struct ms_cmd_thread_args m_cmd_args = {};
   static void *mf_command_funct(void *arg);
-  static uint16_t crc16(const uint8_t *data, size_t length);
+
 
 public:
   CommandServer(void);

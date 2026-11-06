@@ -143,7 +143,10 @@ int VideoStream::sendPacket(custom_IMPEncoderPack *packet) {
   return 0;
 }
 
+#include <fcntl.h>
 #include <pthread.h>
+#include <algorithm>
+#include <iterator>
 
 CommandServer::CommandServer(void) : m_running(false), m_commandThread(0) {
   m_socket_fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -165,6 +168,12 @@ CommandServer::CommandServer(void) : m_running(false), m_commandThread(0) {
     return;
   }
 
+  m_pan_tilt_fd = open(PAN_TILT_FILE, O_RDWR);
+  if (m_pan_tilt_fd < 0) {
+    m_error = errno;
+    return;
+  }
+
   m_rwlock = PTHREAD_RWLOCK_INITIALIZER;
 }
 
@@ -178,24 +187,7 @@ CommandServer::~CommandServer(void) {
   pthread_rwlock_destroy(&m_rwlock);
 
   close(m_socket_fd);
-}
-
-uint16_t CommandServer::crc16(const uint8_t *data, size_t length) {
-  uint16_t crc = 0xFFFF;
-
-  for (size_t i = 0; i < length; ++i) {
-    crc ^= static_cast<uint16_t>(data[i]) << 8;
-
-    for (int bit = 0; bit < 8; ++bit) {
-      if (crc & 0x8000) {
-        crc = (crc << 1) ^ 0x1021;
-      } else {
-        crc <<= 1;
-      }
-    }
-  }
-
-  return crc;
+  close(m_pan_tilt_fd);
 }
 
 void *CommandServer::mf_command_funct(void *arg) {
@@ -204,101 +196,128 @@ void *CommandServer::mf_command_funct(void *arg) {
   bool *isRunning = cmd_args->isRunningPtr;
   pthread_rwlock_t *lock = cmd_args->rwlockPtr;
   int client_fd = cmd_args->client_fd;
+  int pan_tilt_fd = cmd_args->pant_tilt_fd;
+
+  struct pollfd fds[2] = {0};
+  fds[0].fd = pan_tilt_fd;
+  fds[0].events = POLLIN | POLLOUT;
+  fds[1].fd = client_fd;
+  fds[1].events = POLLIN;
 
   bool isError = false;
+  bool terminated = false;
+  bool hasCommand = false;
+
+
+  std::cout << "Running command thread" << std::endl;
 
   int ret = 0;
   while (true) {
     // do stuff to handle commands
-    struct commandHeader header = {0};
-    ret = recv(client_fd, &header.startByte, sizeof(uint8_t), 0);
+    struct Command command = {0};
+
+    ret = poll(fds, sizeof(fds) / sizeof(fds[0]), -1);
     if (ret < 0) {
-      std::cerr << "Failed to recv() from client (start byte): " << errno
-                << std::endl;
-      // return (void*)(intptr_t)errno;
+      std::cerr << "Failed to poll fds: " << errno << std::endl;
       isError = true;
       break;
-    } else if (ret == 0) {
-      // connection terminated
-      break;
-    }
-    if (header.startByte != START_COMMAND) {
-      continue;
-      // invalid packet byte,
     }
 
-    ret = recv(client_fd, &header.len, sizeof(uint8_t), 0);
-    if (ret < 0) {
-      std::cerr << "Failed to recv() from client (len byte): " << errno
-                << std::endl;
-      // return (void*)(intptr_t)errno;
-      isError = true;
-      break;
-    } else if (ret == 0) {
-      // connection terminated
-      break;
-    } else {
-      struct pollfd cmdSck = {0};
+    if (ret > 0) {
 
-      cmdSck.fd = client_fd;
-      cmdSck.events = POLLIN;
-      cmdSck.revents = 0;
+      if (fds[1].revents & POLLIN) {
+        std::cout << "Command received" << std::endl;
+        hasCommand = false;
+        int bytes_recv = 0;
+        do {
+          ret = recv(client_fd,
+                     reinterpret_cast<uint8_t *>(&command) + bytes_recv,
+                     sizeof(command) - bytes_recv, 0);
+          if (ret < 0) {
+            std::cerr << "Failed to receive command: " << errno << std::endl;
+            isError = true;
+            break;
+          } else if (ret == 0) {
+            // connection terminated
+            terminated = true;
+            break;
+          }
 
-      uint8_t recvBytes = 0;
-      uint8_t payload[MAX_PAYLOAD_SIZE] = {0};
-      bool timedOutOrClosed = false;
-      do {
+          bytes_recv += ret;
 
-        ret = poll(&cmdSck, 1, 1000);
-        //  1 sec timeout
+        } while (bytes_recv < sizeof(command));
 
-        if (ret == 0) {
-          // timeout
-          timedOutOrClosed = true;
+        if (isError || terminated)
           break;
-        } else if (ret < 0) {
-          // error
-          std::cerr << "Failed to poll() from client for payload: " << errno
+
+        if (command.startByte != START_COMMAND) {
+          std::cerr << "Start byte missmatch in command: "
+                    << (int)command.startByte << " vs " << (int)START_COMMAND
                     << std::endl;
-          isError = true;
-          break;
+        } else {
+          uint16_t crc = ntohs(command.crc);
+          uint16_t calc_crc = crc16(command.payload_bytes, sizeof(command.payload_bytes));
+
+          if (crc != calc_crc) {
+            std::cerr << "CRC missmatch: " << crc << " vs " << calc_crc
+                      << std::endl;
+
+          } else {
+            hasCommand = true;
+          }
         }
 
-        ret = recv(client_fd, &payload[recvBytes], header.len - recvBytes, 0);
+      } // polling for client fd
+      if (fds[0].revents & POLLIN) {
+        // read from pan_tilt file
+        std::cout << "Read pan_tilt file" << std::endl;
+        uint8_t tmp[64] = {'\0'};
+        /*bool full_line = false;
+        while (0 < (ret = read(pan_tilt_fd, &tmp, sizeof(tmp)))) {
+                std::cout << "bap" << tmp <<std::endl;
+          if (tmp == '\n')
+            break;
+          data += tmp;
+        }*/
+
+        ret = read(pan_tilt_fd, tmp, sizeof(tmp));
+
         if (ret < 0) {
-          std::cerr << "Failed to read command payload: " << errno << std::endl;
-          isError = true;
-          break;
+          std::cerr << "Failed to read from pan_tilt file: " << errno
+                    << std::endl;
+          // probably not important
+        } else if (ret != 0) {
+          std::string data(std::begin(tmp), std::find(std::begin(tmp), std::end(tmp), '\n'));
+          std::cout << "pan_tilt output: " << data << std::endl;
+
         }
-        if (ret == 0) {
-          // connection terminated
-          timedOutOrClosed = true;
-          break;
-        }
 
-        recvBytes += ret;
+      } // pan_tilt pollin
+      if (fds[0].revents & POLLOUT && hasCommand) {
+        // write to pan_tilt file
+        std::cout << "Writing command to pan_tilt file" << std::endl;
 
-      } while (recvBytes < header.len);
 
-      if (isError == true)
-        break;
-      else if (timedOutOrClosed == true)
-        continue;
+          int sent_bytes = 0;
+          do {
+            ret = write(pan_tilt_fd, command.payload_bytes + sent_bytes,
+                       sizeof(command.payload_bytes) - sent_bytes);
+            if (ret < 0) {
+              std::cerr << "Failed to write command to pan_tilt file: " << errno
+                        << std::endl;
+              isError = true;
+              break;
+            }
+            sent_bytes += ret;
+          } while (sent_bytes < sizeof(command.payload_bytes));
+          hasCommand = false;
+          if (isError)
+            break;
 
-      uint16_t crc_to_test = (uint16_t)(payload[header.len - 2] << 8) |
-                             (uint16_t)(payload[header.len - 1]);
-      crc_to_test = htons(crc_to_test);
 
-      uint16_t crc = crc16(payload, header.len - 2);
+      } // pan_tilt pollout
 
-      if (crc_to_test != crc) {
-        std::cerr << "Warning: CRC missmatch: " << crc_to_test << " vs " << crc
-                  << std::endl;
-      } else {
-        /// todo: handle commands
-      }
-
-    } // end else
+    } // poll ret
 
   } // while true
 
@@ -330,7 +349,7 @@ struct in_addr CommandServer::waitUntilConnected(void) {
   struct in_addr ip = m_client.sin_addr;
   m_running = true;
 
-  m_cmd_args = {&m_running, &m_rwlock, m_client_fd};
+  m_cmd_args = {&m_running, &m_rwlock, m_client_fd, m_pan_tilt_fd};
 
   int ret =
       pthread_create(&m_commandThread, nullptr, mf_command_funct, &m_cmd_args);
