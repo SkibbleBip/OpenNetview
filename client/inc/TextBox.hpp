@@ -1,3 +1,6 @@
+#ifndef __TEXTBOX_H__
+#define __TEXTBOX_H__
+
 
 #include <SDL_ttf.h>
 #include <string>
@@ -26,3 +29,5 @@ public:
         destroy();
     }
 };
+
+#endif // __TEXTBOX_H__
