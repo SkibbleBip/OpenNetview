@@ -1,3 +1,3 @@
 [submodule "openimp"]
-	path = openimp
+	path = firmware/openimp
 	url = https://github.com/opensensor/openimp.git
