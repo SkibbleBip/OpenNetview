@@ -13,7 +13,8 @@ CXXFLAGS = --sysroot=$(SYSROOT) \
            -U_FORTIFY_SOURCE \
            -D_FORTIFY_SOURCE=0 \
            -I./inc \
-           -I./openimp/include
+           -I./openimp/include \
+           -I../inc
 
 SYSROOT = ./vender-sysroot
 

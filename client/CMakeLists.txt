@@ -20,4 +20,7 @@ target_link_libraries(opennetviewclient PRIVATE
     SDL2_ttf::SDL2_ttf
 )
 
-target_include_directories(opennetviewclient PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/inc)
+target_include_directories(opennetviewclient PRIVATE 
+	${CMAKE_CURRENT_SOURCE_DIR}/inc
+	${CMAKE_CURRENT_SOURCE_DIR}/../inc
+)

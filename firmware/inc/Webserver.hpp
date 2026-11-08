@@ -3,12 +3,12 @@
 
 #include "Command.hpp"
 #include "Encoder.hpp"
+#include "Common.h"
 
 #include <netinet/in.h>
 #include <pthread.h>
 
-#define H264_PORT 6969
-#define COMMAND_PORT 52000
+
 #define PAN_TILT_FILE "/proc/nv_driver_lite/pan_tilt"
 
 struct RTPHeader {
