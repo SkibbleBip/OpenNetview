@@ -1,5 +1,5 @@
 
-#include "TextBox.h"
+#include "TextBox.hpp"
 
 int TextLabel::setText(SDL_Renderer *renderer, TTF_Font *font,
                        const std::string &text, SDL_Color color) {
@@ -11,7 +11,7 @@ int TextLabel::setText(SDL_Renderer *renderer, TTF_Font *font,
   SDL_Surface *surface = TTF_RenderUTF8_Blended(font, text.c_str(), color);
 
   if (!surface) {
-    //std::cerr << "Text rendering failed: " << TTF_GetError() << std::endl;
+    // std::cerr << "Text rendering failed: " << TTF_GetError() << std::endl;
     return -1;
   }
 

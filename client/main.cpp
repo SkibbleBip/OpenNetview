@@ -3,11 +3,17 @@
 
 #include <SDL.h>
 
+#include <cstring>
 #include <iostream>
 #include <string>
 #include <vector>
 
-#include "TextBox.h"
+#include "Common.h"
+#include "TextBox.hpp"
+#include "WebConnect.hpp"
+
+const uint32_t MOVE_INTERVAL_MS = 25;
+const int16_t MOVE_STEPS = 10;
 
 const std::string fontPath =
 #ifdef _WIN32
@@ -22,7 +28,17 @@ const SDL_Color c_green = {0, 255, 100, 255};
 const SDL_Color c_red = {255, 0, 100, 255};
 const SDL_Color c_grey = {180, 180, 180, 255};
 
+std::string g_camera;
+
 int main(int argc, char **argv) {
+
+  if (argc < 2) {
+    std::cout << "Usage: " << argv[0] << " [IP/Domain]" << std::endl;
+    return 0;
+  }
+
+  g_camera = argv[1];
+
   SDL_SetMainReady();
 
   // Initialize SDL
@@ -85,18 +101,35 @@ int main(int argc, char **argv) {
   TextLabel statusInfo;
   TextLabel keyInfo;
 
-  cameraInfo.setText(renderer, font, "Camera: 192.168.0.67", c_white);
+  WebConnect web_connection(g_camera);
+  int errorReturned = web_connection.getError();
+  std::string connectionStatus;
+  if (errorReturned != 0) {
+    connectionStatus =
+        "Connection Failure: " + std::string(strerror(errorReturned));
+    std::cerr << connectionStatus << std::endl;
+  } else {
+    connectionStatus = "Connected";
+  }
 
-  streamInfo.setText(renderer, font, "RTP / H264 | UDP: 6969", c_white);
+  cameraInfo.setText(renderer, font, "Camera: " + g_camera, c_white);
+
+  streamInfo.setText(renderer, font,
+                     ("RTP / H264: " + std::to_string(H264_PORT) +
+                      " | Commands: " + std::to_string(COMMAND_PORT)),
+                     c_white);
 
   controlsInfo.setText(renderer, font, "WASD / ▲ ▼◄ ► | ESC: Quit", c_white);
 
-  statusInfo.setText(renderer, font, "Not Connected", c_red);
+  statusInfo.setText(renderer, font, connectionStatus,
+                     errorReturned != 0 ? c_red : c_green);
 
   keyInfo.setText(renderer, font, "[None]", c_grey);
 
   bool running = true;
+
   uint32_t lastTime = SDL_GetTicks();
+  uint32_t keyDelay = 0;
 
   // Main event/render loop
   while (running) {
@@ -113,6 +146,10 @@ int main(int argc, char **argv) {
         break;
 
       case SDL_KEYDOWN: {
+
+        if (event.key.repeat != 0)
+          break;
+        // dont trigger on repeat
 
         SDL_Keycode key = event.key.keysym.sym;
 
@@ -134,15 +171,23 @@ int main(int argc, char **argv) {
         case SDL_SCANCODE_W:
           keyInfo.setText(renderer, font, keyName, c_grey);
           break;
+        case SDL_SCANCODE_HOME: {
+          // custom for home key - sends "goto 0 0" command
+          //  I think "reset" is broken because then it rejects any commands
+          //  after
+          keyInfo.setText(renderer, font, keyName, c_grey);
+          web_connection.sendCommand(COMMAND_TYPE::HOME, 0, 0);
+        }
         default:
           break;
-        }
+        } // KEY SCANCODE
 
         break;
       }
       case SDL_KEYUP: {
-
-        keyInfo.setText(renderer, font, "[None]", c_grey);
+        if (event.key.keysym.scancode != SDL_SCANCODE_HOME)
+          // only clear if we didnt release on HOME
+          keyInfo.setText(renderer, font, "[None]", c_grey);
 
         break;
       }
@@ -156,22 +201,33 @@ int main(int argc, char **argv) {
 
     // 3. Poll Real-Time Keyboard State for Movement
     const uint8_t *keystate = SDL_GetKeyboardState(NULL);
-    /// @todo handle motion of camera
-    if (keystate[SDL_SCANCODE_LEFT] || keystate[SDL_SCANCODE_A]) {
-      std::cout << "left" << std::endl;
-      (void)deltaTime;
-    }
-    if (keystate[SDL_SCANCODE_RIGHT] || keystate[SDL_SCANCODE_D]) {
-      std::cout << "right" << std::endl;
-      (void)deltaTime;
-    }
-    if (keystate[SDL_SCANCODE_UP] || keystate[SDL_SCANCODE_W]) {
-      std::cout << "up" << std::endl;
-      (void)deltaTime;
-    }
-    if (keystate[SDL_SCANCODE_DOWN] || keystate[SDL_SCANCODE_S]) {
-      std::cout << "down" << std::endl;
-      (void)deltaTime;
+
+    if (keyDelay < MOVE_INTERVAL_MS) {
+      keyDelay += (deltaTime * 1000);
+      // what on earth am I doing here
+    } else {
+
+      if (keystate[SDL_SCANCODE_LEFT] || keystate[SDL_SCANCODE_A]) {
+        // std::cout << "left" << deltaTime << std::endl;
+        (void)deltaTime;
+        web_connection.sendCommand(COMMAND_TYPE::MOVE, MOVE_STEPS, 0);
+      }
+      if (keystate[SDL_SCANCODE_RIGHT] || keystate[SDL_SCANCODE_D]) {
+        // std::cout << "right" << std::endl;
+        (void)deltaTime;
+        web_connection.sendCommand(COMMAND_TYPE::MOVE, -MOVE_STEPS, 0);
+      }
+      if (keystate[SDL_SCANCODE_UP] || keystate[SDL_SCANCODE_W]) {
+        // std::cout << "up" << std::endl;
+        (void)deltaTime;
+        web_connection.sendCommand(COMMAND_TYPE::MOVE, 0, -MOVE_STEPS);
+      }
+      if (keystate[SDL_SCANCODE_DOWN] || keystate[SDL_SCANCODE_S]) {
+        // std::cout << "down" << std::endl;
+        (void)deltaTime;
+        web_connection.sendCommand(COMMAND_TYPE::MOVE, 0, MOVE_STEPS);
+      }
+      keyDelay = 0;
     }
 
     // Get window dimensions

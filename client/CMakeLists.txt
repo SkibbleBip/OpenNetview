@@ -13,6 +13,7 @@ find_package(SDL2_ttf CONFIG REQUIRED)
 add_executable(opennetviewclient
     main.cpp
     TextBox.cpp
+    WebConnect.cpp
 )
 
 target_link_libraries(opennetviewclient PRIVATE

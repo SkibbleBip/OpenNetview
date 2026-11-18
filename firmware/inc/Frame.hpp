@@ -63,7 +63,7 @@ public:
   custom_IMPFrameInfo *getFrameInfo(void) { return frameInfo; }
 
   Frame(int errCode) : errorCode(errCode) {}
-  Frame(custom_IMPFrameInfo *fInfo) : frameInfo(fInfo){};
+  Frame(custom_IMPFrameInfo *fInfo) : frameInfo(fInfo) {};
   Frame(void) = delete;
 };
 

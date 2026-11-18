@@ -2,12 +2,11 @@
 #define __WEBSERVER_HPP__
 
 #include "Command.hpp"
-#include "Encoder.hpp"
 #include "Common.h"
+#include "Encoder.hpp"
 
 #include <netinet/in.h>
 #include <pthread.h>
-
 
 #define PAN_TILT_FILE "/proc/nv_driver_lite/pan_tilt"
 
@@ -59,7 +58,6 @@ private:
   };
   struct ms_cmd_thread_args m_cmd_args = {};
   static void *mf_command_funct(void *arg);
-
 
 public:
   CommandServer(void);

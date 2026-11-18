@@ -6,14 +6,11 @@
 constexpr uint8_t START_COMMAND = 0x02;
 constexpr size_t MAX_PAYLOAD_SIZE = 16;
 
-
 struct Command {
   uint8_t startByte;
   uint8_t payload_bytes[MAX_PAYLOAD_SIZE];
   uint16_t crc;
 } __attribute__((packed));
-
-
 
 static uint16_t crc16(const uint8_t *data, size_t length) {
   uint16_t crc = 0xFFFF;
@@ -32,6 +29,5 @@ static uint16_t crc16(const uint8_t *data, size_t length) {
 
   return crc;
 }
-
 
 #endif
