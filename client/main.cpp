@@ -177,6 +177,7 @@ int main(int argc, char **argv) {
           //  after
           keyInfo.setText(renderer, font, keyName, c_grey);
           web_connection.sendCommand(COMMAND_TYPE::HOME, 0, 0);
+          break;
         }
         default:
           break;

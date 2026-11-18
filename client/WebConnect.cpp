@@ -22,10 +22,10 @@ WebConnect::WebConnect(const std::string ip_addr) {
 
   serv_addr.sin_family = AF_INET;
   serv_addr.sin_port = htons(COMMAND_PORT);
-
-  if (inet_pton(AF_INET, ip_addr.c_str(), &serv_addr.sin_addr) <= 0) {
+  int ret = 0;
+  if ( (ret = inet_pton(AF_INET, ip_addr.c_str(), &serv_addr.sin_addr)) <= 0) {
     h264_connection = -1;
-    m_error = errno;
+    m_error = (ret == 0 ? EINVAL : errno);
     std::cerr << "Failed to convert IP Addr: " << m_error << std::endl;
     return;
   }
