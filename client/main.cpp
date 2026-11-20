@@ -285,7 +285,9 @@ int main(int argc, char **argv) {
                     << std::endl;
         }
       }
-    }
+    } // if frame != null
+
+    web_connection.releaseFrame();
 
     SDL_Rect videoArea = {0, 0, windowWidth, windowHeight};
 

@@ -143,10 +143,10 @@ int VideoStream::sendPacket(custom_IMPEncoderPack *packet) {
   return 0;
 }
 
-#include <fcntl.h>
-#include <pthread.h>
 #include <algorithm>
+#include <fcntl.h>
 #include <iterator>
+#include <pthread.h>
 
 CommandServer::CommandServer(void) : m_running(false), m_commandThread(0) {
   m_socket_fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -208,7 +208,6 @@ void *CommandServer::mf_command_funct(void *arg) {
   bool terminated = false;
   bool hasCommand = false;
 
-
   std::cout << "Running command thread" << std::endl;
 
   int ret = 0;
@@ -256,7 +255,8 @@ void *CommandServer::mf_command_funct(void *arg) {
                     << std::endl;
         } else {
           uint16_t crc = ntohs(command.crc);
-          uint16_t calc_crc = crc16(command.payload_bytes, sizeof(command.payload_bytes));
+          uint16_t calc_crc =
+              crc16(command.payload_bytes, sizeof(command.payload_bytes));
 
           if (crc != calc_crc) {
             std::cerr << "CRC missmatch: " << crc << " vs " << calc_crc
@@ -287,9 +287,9 @@ void *CommandServer::mf_command_funct(void *arg) {
                     << std::endl;
           // probably not important
         } else if (ret != 0) {
-          std::string data(std::begin(tmp), std::find(std::begin(tmp), std::end(tmp), '\n'));
+          std::string data(std::begin(tmp),
+                           std::find(std::begin(tmp), std::end(tmp), '\n'));
           std::cout << "pan_tilt output: " << data << std::endl;
-
         }
 
       } // pan_tilt pollin
@@ -297,23 +297,21 @@ void *CommandServer::mf_command_funct(void *arg) {
         // write to pan_tilt file
         std::cout << "Writing command to pan_tilt file" << std::endl;
 
-
-          int sent_bytes = 0;
-          do {
-            ret = write(pan_tilt_fd, command.payload_bytes + sent_bytes,
-                       sizeof(command.payload_bytes) - sent_bytes);
-            if (ret < 0) {
-              std::cerr << "Failed to write command to pan_tilt file: " << errno
-                        << std::endl;
-              isError = true;
-              break;
-            }
-            sent_bytes += ret;
-          } while (sent_bytes < sizeof(command.payload_bytes));
-          hasCommand = false;
-          if (isError)
+        int sent_bytes = 0;
+        do {
+          ret = write(pan_tilt_fd, command.payload_bytes + sent_bytes,
+                      sizeof(command.payload_bytes) - sent_bytes);
+          if (ret < 0) {
+            std::cerr << "Failed to write command to pan_tilt file: " << errno
+                      << std::endl;
+            isError = true;
             break;
-
+          }
+          sent_bytes += ret;
+        } while (sent_bytes < sizeof(command.payload_bytes));
+        hasCommand = false;
+        if (isError)
+          break;
 
       } // pan_tilt pollout
 
