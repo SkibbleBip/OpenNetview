@@ -9,16 +9,26 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 find_package(SDL2 CONFIG REQUIRED)
 find_package(SDL2_ttf CONFIG REQUIRED)
+find_package(PkgConfig REQUIRED)
+
+pkg_check_modules(FFMPEG REQUIRED IMPORTED_TARGET
+    libavformat
+    libavcodec
+    libavutil
+    libswscale
+)
 
 add_executable(opennetviewclient
     main.cpp
     TextBox.cpp
     WebConnect.cpp
+    VideoManager.cpp
 )
 
 target_link_libraries(opennetviewclient PRIVATE
     SDL2::SDL2
     SDL2_ttf::SDL2_ttf
+    PkgConfig::FFMPEG
 )
 
 target_include_directories(opennetviewclient PRIVATE 

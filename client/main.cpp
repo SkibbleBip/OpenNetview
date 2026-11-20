@@ -101,6 +101,10 @@ int main(int argc, char **argv) {
   TextLabel statusInfo;
   TextLabel keyInfo;
 
+  // video display texture
+  SDL_Texture *videoTexture = nullptr;
+  int vidWidth = 0, vidHeight = 0;
+
   WebConnect web_connection(g_camera);
   int errorReturned = web_connection.getError();
   std::string connectionStatus;
@@ -229,7 +233,7 @@ int main(int argc, char **argv) {
         web_connection.sendCommand(COMMAND_TYPE::MOVE, 0, MOVE_STEPS);
       }
       keyDelay = 0;
-    }
+    } // keydelay
 
     // Get window dimensions
     int windowWidth;
@@ -247,11 +251,50 @@ int main(int argc, char **argv) {
     // ------------------------------------------------
     // Eventually replaced with FFmpeg video texture.
 
-    SDL_SetRenderDrawColor(renderer, 15, 15, 15, 255);
+    AVFrame *frame = web_connection.fetchFrame();
+    if (frame != nullptr) {
+
+      if (videoTexture == nullptr || vidWidth != frame->width ||
+          vidHeight != frame->height) {
+
+        if (videoTexture != nullptr) {
+          SDL_DestroyTexture(videoTexture);
+          videoTexture = nullptr;
+        }
+
+        vidWidth = frame->width;
+        vidHeight = frame->height;
+
+        videoTexture =
+            SDL_CreateTexture(renderer, SDL_PIXELFORMAT_IYUV,
+                              SDL_TEXTUREACCESS_STREAMING, vidWidth, vidHeight);
+
+        if (videoTexture == nullptr) {
+          std::cerr << "SDL_CreateTexture failed: " << SDL_GetError()
+                    << std::endl;
+        }
+      }
+
+      if (videoTexture != nullptr) {
+        if (SDL_UpdateYUVTexture(videoTexture, nullptr, frame->data[0],
+                                 frame->linesize[0], frame->data[1],
+                                 frame->linesize[1], frame->data[2],
+                                 frame->linesize[2]) != 0) {
+
+          std::cerr << "SDL_UpdateYUVTexture failed: " << SDL_GetError()
+                    << std::endl;
+        }
+      }
+    }
 
     SDL_Rect videoArea = {0, 0, windowWidth, windowHeight};
 
-    SDL_RenderFillRect(renderer, &videoArea);
+    if (videoTexture != nullptr) {
+      SDL_RenderCopy(renderer, videoTexture, nullptr, &videoArea);
+    } else {
+      SDL_SetRenderDrawColor(renderer, 15, 15, 15, 255);
+      SDL_RenderFillRect(renderer, &videoArea);
+    }
 
     // ------------------------------------------------
     // Top overlay
@@ -283,6 +326,9 @@ int main(int argc, char **argv) {
     // Display everything
     SDL_RenderPresent(renderer);
   } // while running
+
+  if (videoTexture != nullptr)
+    SDL_DestroyTexture(videoTexture);
 
   SDL_DestroyRenderer(renderer);
   SDL_DestroyWindow(window);
