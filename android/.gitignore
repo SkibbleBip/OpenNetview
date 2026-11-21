@@ -1,0 +1,4 @@
+.gradle/
+app/build/
+local.properties
+# no clue what these are but they appeared here and I dont think you personally need them
