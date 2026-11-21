@@ -17,3 +17,7 @@ The debug APK is written to `app/build/outputs/apk/debug/app-debug.apk`. This re
 Install the debug APK on an Android device on the same network as the camera. Enter its IP address or hostname and tap **Connect**. The app binds UDP port 6969 for RTP/H.264 and connects to TCP port 52000 for control. Hold the directional buttons to send repeated movement commands; **Home** sends `goto 0 0`.
 
 The camera firmware must support the same command framing and RTP payload format as the desktop client. Android devices and network configurations may impose additional constraints on UDP reception.
+
+### AI Desclaimer
+
+This specific android app is 100% vibe coded with copilot and chatgpt. I am not an android dev. No warranty is provided to this app. All humans are welcomed to provide patches and fixes.
