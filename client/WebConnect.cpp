@@ -78,7 +78,7 @@ void *WebConnect::mf_video_thread(void *ptr) {
   pthread_rwlock_t *l_rw_lock = sharedMem->rw_lock;
   const unsigned short portNum = sharedMem->portNum;
 
-  VideoManager videoManager(portNum);
+  VideoManager videoManager(portNum, &(sharedMem->isRunning));
 
   int ret = 0;
   if (ret = videoManager.getError()) {

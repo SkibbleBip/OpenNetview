@@ -3,6 +3,7 @@
 #ifndef __VIDEO_MANAGER_HPP__
 #define __VIDEO_MANAGER_HPP__
 
+#include <atomic>
 #include <cstdint>
 #include <string>
 
@@ -39,28 +40,21 @@ private:
   AVCodecContext *codec_ctx = nullptr;
   AVPacket *packet = nullptr;
   AVFrame *frame = nullptr;
+  std::atomic<bool> *m_isRunning = nullptr;
 
   CustomBuff m_cb = {0};
   int video_stream_index = 0;
   int m_error = 0;
 
-  static int read_packet(void *ptr, uint8_t *buff, int buff_size) {
-    CustomBuff *cb = static_cast<CustomBuff *>(ptr);
-    int size = FFMIN((size_t)buff_size, cb->size);
-    if (size <= 0)
-      return AVERROR_EOF;
-
-    memcpy(buff, cb->ptr, size);
-    cb->ptr += size;
-    cb->size -= size;
-    return size;
-  }
+  static int read_packet(void *ptr, uint8_t *buff, int buff_size);
+  static int interruptCallback(void *opaque);
 
 public:
-  VideoManager(uint16_t port);
+  VideoManager(uint16_t port, std::atomic<bool> *isRunning);
   ~VideoManager(void);
   const int getError(void) const { return m_error; }
   AVFrame *fetchFrame(void);
+  void abort(void);
 };
 
 #endif // __VIDEO_MANAGER_HPP__

@@ -5,7 +5,9 @@
 
 const std::string local_ip = "0.0.0.0";
 
-VideoManager::VideoManager(uint16_t port) {
+VideoManager::VideoManager(uint16_t port, std::atomic<bool> *isRunning) {
+  m_isRunning = isRunning;
+
   std::stringstream sdp_stream;
 
   sdp_stream << "v=0\r\n"
@@ -44,6 +46,10 @@ VideoManager::VideoManager(uint16_t port) {
     return;
   }
   fmt_ctx->pb = avio_ctx;
+
+  fmt_ctx->interrupt_callback.callback = interruptCallback;
+  fmt_ctx->interrupt_callback.opaque = m_isRunning;
+  // set callback to interrupt ffmpeg in the event we die
 
   const AVInputFormat *sdp_fmt = av_find_input_format("sdp");
   AVDictionary *options = nullptr;
@@ -172,4 +178,20 @@ AVFrame *VideoManager::fetchFrame(void) {
       break;
     }
   }
+}
+
+int VideoManager::read_packet(void *ptr, uint8_t *buff, int buff_size) {
+  CustomBuff *cb = static_cast<CustomBuff *>(ptr);
+  int size = FFMIN((size_t)buff_size, cb->size);
+  if (size <= 0)
+    return AVERROR_EOF;
+
+  memcpy(buff, cb->ptr, size);
+  cb->ptr += size;
+  cb->size -= size;
+  return size;
+}
+int VideoManager::interruptCallback(void *opaque) {
+  std::atomic<bool> *running = static_cast<std::atomic<bool> *>(opaque);
+  return !running->load();
 }
