@@ -27,30 +27,15 @@ const SDL_Color c_white = {255, 255, 255, 255};
 const SDL_Color c_green = {0, 255, 100, 255};
 const SDL_Color c_red = {255, 0, 100, 255};
 const SDL_Color c_grey = {180, 180, 180, 255};
+bool getCameraIP(std::string &ip, TTF_Font *font);
 
 std::string g_camera;
 
 int main(int argc, char **argv) {
 
-  if (argc < 2) {
-    std::cout << "Usage: " << argv[0] << " [IP/Domain]" << std::endl;
-    return 0;
-  }
-
-  g_camera = argv[1];
-
-  SDL_SetMainReady();
-
-  // Initialize SDL
-  if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS) != 0) {
-    std::cerr << "SDL initialization failed: " << SDL_GetError() << std::endl;
-    return 1;
-  }
-
   if (TTF_Init() != 0) {
     std::cerr << "SDL_ttf initialization failed: " << TTF_GetError()
               << std::endl;
-    SDL_Quit();
     return 1;
   }
 
@@ -60,7 +45,23 @@ int main(int argc, char **argv) {
     std::cerr << "Failed to load font: " << TTF_GetError() << std::endl;
 
     TTF_Quit();
+    return 1;
+  }
+
+  if (!getCameraIP(g_camera, font)) {
+    TTF_Quit();
     SDL_Quit();
+    return 0;
+  }
+
+  SDL_SetMainReady();
+
+  // Initialize SDL
+  if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS) != 0) {
+    std::cerr << "SDL initialization failed: " << SDL_GetError() << std::endl;
+    TTF_CloseFont(font);
+    TTF_Quit();
+
     return 1;
   }
 
@@ -341,4 +342,140 @@ int main(int argc, char **argv) {
   SDL_Quit();
 
   return 0;
+}
+
+bool getCameraIP(std::string &ip, TTF_Font *font) {
+
+  SDL_Window *window =
+      SDL_CreateWindow("OpenNetview - Connect", SDL_WINDOWPOS_CENTERED,
+                       SDL_WINDOWPOS_CENTERED, 450, 180, SDL_WINDOW_SHOWN);
+
+  if (!window)
+    return false;
+
+  SDL_Renderer *renderer = SDL_CreateRenderer(
+      window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+
+  if (!renderer) {
+    SDL_DestroyWindow(window);
+    return false;
+  }
+
+  std::string input;
+
+  SDL_StartTextInput();
+
+  bool running = true;
+  bool accepted = false;
+
+  while (running) {
+
+    SDL_Event event;
+
+    while (SDL_PollEvent(&event)) {
+
+      switch (event.type) {
+
+      case SDL_QUIT:
+        running = false;
+        break;
+
+      case SDL_TEXTINPUT:
+        input += event.text.text;
+        break;
+
+      case SDL_KEYDOWN:
+
+        if (event.key.keysym.sym == SDLK_BACKSPACE && !input.empty()) {
+          input.pop_back();
+        }
+
+        if (event.key.keysym.sym == SDLK_RETURN) {
+          accepted = !input.empty();
+          running = false;
+        }
+
+        if (event.key.keysym.sym == SDLK_ESCAPE) {
+          running = false;
+        }
+
+        break;
+
+      case SDL_MOUSEBUTTONDOWN: {
+
+        int x = event.button.x;
+        int y = event.button.y;
+
+        // Connect button
+        if (x >= 270 && x <= 370 && y >= 115 && y <= 155) {
+
+          if (!input.empty()) {
+            accepted = true;
+            running = false;
+          }
+        }
+
+        // Cancel button
+        if (x >= 80 && x <= 180 && y >= 115 && y <= 155) {
+
+          running = false;
+        }
+
+        break;
+      }
+      }
+    }
+
+    SDL_SetRenderDrawColor(renderer, 25, 25, 25, 255);
+    SDL_RenderClear(renderer);
+
+    // Prompt
+    TextLabel prompt;
+    prompt.setText(renderer, font, "Enter camera IP / hostname:", c_white);
+    prompt.draw(renderer, 20, 15);
+
+    // Input background
+    SDL_Rect inputBox = {20, 50, 410, 40};
+
+    SDL_SetRenderDrawColor(renderer, 60, 60, 60, 255);
+    SDL_RenderFillRect(renderer, &inputBox);
+
+    // Input text
+    TextLabel inputLabel;
+    inputLabel.setText(renderer, font, input + "_", c_white);
+    inputLabel.draw(renderer, 30, 58);
+
+    // Connect button
+    SDL_Rect connectButton = {270, 115, 100, 40};
+
+    SDL_SetRenderDrawColor(renderer, 0, 130, 70, 255);
+    SDL_RenderFillRect(renderer, &connectButton);
+
+    TextLabel connectLabel;
+    connectLabel.setText(renderer, font, "Connect", c_white);
+    connectLabel.draw(renderer, 280, 125);
+
+    // Cancel button
+    SDL_Rect cancelButton = {80, 115, 100, 40};
+
+    SDL_SetRenderDrawColor(renderer, 130, 30, 30, 255);
+    SDL_RenderFillRect(renderer, &cancelButton);
+
+    TextLabel cancelLabel;
+    cancelLabel.setText(renderer, font, "Cancel", c_white);
+    cancelLabel.draw(renderer, 100, 125);
+
+    SDL_RenderPresent(renderer);
+  }
+
+  SDL_StopTextInput();
+
+  // TTF_CloseFont(font);
+  SDL_DestroyRenderer(renderer);
+  SDL_DestroyWindow(window);
+
+  if (accepted)
+    ip = input;
+
+  return accepted;
 }

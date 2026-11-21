@@ -12,6 +12,8 @@
 
 WebConnect::WebConnect(const std::string ip_addr) {
 
+  m_rwlock = PTHREAD_RWLOCK_INITIALIZER;
+
   if ((command_socket = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
     command_socket = -1;
     // h264_connection = -1;
@@ -42,7 +44,6 @@ WebConnect::WebConnect(const std::string ip_addr) {
   std::cout << "Connected to Camera CNC: " << ip_addr << ":" << COMMAND_PORT
             << std::endl;
 
-  m_rwlock = PTHREAD_RWLOCK_INITIALIZER;
   // init the rw lock
 
   // set up FFMPEG to listen on h264 port
@@ -56,6 +57,7 @@ WebConnect::WebConnect(const std::string ip_addr) {
     m_error = errno;
     std::cerr << "Failed to create video thread: " << m_error << std::endl;
   }
+  bool m_thread_started = false;
 }
 
 WebConnect::~WebConnect(void) {
@@ -64,7 +66,8 @@ WebConnect::~WebConnect(void) {
   }
   sharedMem.isRunning.store(false);
 
-  pthread_join(m_video_thread, nullptr);
+  if (m_thread_started)
+    pthread_join(m_video_thread, nullptr);
 
   pthread_rwlock_destroy(&m_rwlock);
   av_frame_free(&(sharedMem.frameCache));

@@ -17,6 +17,7 @@ private:
   int m_error = 0;
   pthread_t m_video_thread = {};
   pthread_rwlock_t m_rwlock = {};
+  bool m_thread_started = false;
 
   struct shared_mem {
     std::atomic<bool> isRunning{false};
