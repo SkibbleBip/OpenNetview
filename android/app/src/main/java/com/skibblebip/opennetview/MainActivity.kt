@@ -45,20 +45,46 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        window.statusBarColor = Color.BLACK
-        window.navigationBarColor = Color.BLACK
+        window.statusBarColor = Color.TRANSPARENT
+        window.navigationBarColor = Color.TRANSPARENT
+        window.decorView.systemUiVisibility = (
+            android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                or android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                or android.view.View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                or android.view.View.SYSTEM_UI_FLAG_FULLSCREEN
+                or android.view.View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                or android.view.View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+            )
         buildUi()
     }
 
     private fun buildUi() {
-        val root = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
+        // The video is the base layer. All controls are added afterwards as
+        // transparent overlays so the camera image remains visible beneath them.
+        val root = android.widget.FrameLayout(this).apply {
             setBackgroundColor(Color.BLACK)
-            setPadding(8, 8, 8, 8)
+            clipChildren = true
+            clipToPadding = true
         }
+
+        surfaceView = SurfaceView(this)
+        surfaceView.holder.addCallback(this)
+        root.addView(surfaceView, android.widget.FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT
+        ))
+
+        val overlay = android.widget.FrameLayout(this)
+        root.addView(overlay, android.widget.FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT
+        ))
+
         val connectRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
+            setPadding(8, 4, 8, 4)
+            setBackgroundColor(0x99000000.toInt())
         }
         addressInput = EditText(this).apply {
             hint = "Camera IP / hostname"
@@ -67,38 +93,41 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
             setHintTextColor(Color.LTGRAY)
             setPadding(12, 4, 12, 4)
             setText("192.168.1.1")
+            textSize = 14f
+            backgroundTintList = android.content.res.ColorStateList.valueOf(Color.LTGRAY)
         }
-        connectRow.addView(addressInput, LinearLayout.LayoutParams(0, 52, 1f))
+        connectRow.addView(addressInput, LinearLayout.LayoutParams(220, 48))
         val connectButton = Button(this).apply {
             text = "Connect"
             setOnClickListener { connect() }
         }
         connectRow.addView(connectButton)
-        root.addView(connectRow)
+        val connectParams = android.widget.FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            Gravity.TOP or Gravity.START
+        ).apply { setMargins(8, 8, 8, 8) }
+        overlay.addView(connectRow, connectParams)
 
-        val videoFrame = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.rgb(15, 15, 15))
-        }
-        surfaceView = SurfaceView(this)
-        surfaceView.holder.addCallback(this)
-        videoFrame.addView(surfaceView, LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f
-        ))
         status = TextView(this).apply {
             text = "Enter the camera address and connect."
-            setTextColor(Color.LTGRAY)
-            textSize = 14f
-            setPadding(8, 4, 8, 4)
+            setTextColor(Color.WHITE)
+            textSize = 13f
+            setPadding(10, 7, 10, 7)
+            setBackgroundColor(0x99000000.toInt())
         }
-        videoFrame.addView(status)
-        root.addView(videoFrame, LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f
-        ))
+        val statusParams = android.widget.FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            Gravity.BOTTOM or Gravity.START
+        ).apply { setMargins(8, 8, 8, 8) }
+        overlay.addView(status, statusParams)
 
         val controls = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(8, 6, 8, 6)
+            setBackgroundColor(0x99000000.toInt())
         }
         val pad = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -119,7 +148,13 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
             setOnClickListener { sendCommand("goto 0 0 ") }
         }
         controls.addView(home)
-        root.addView(controls)
+        val controlsParams = android.widget.FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            Gravity.BOTTOM or Gravity.END
+        ).apply { setMargins(8, 8, 8, 8) }
+        overlay.addView(controls, controlsParams)
+
         setContentView(root)
     }
 
@@ -297,6 +332,9 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
                 decoder = MediaCodec.createDecoderByType(MediaFormat.MIMETYPE_VIDEO_AVC)
                 decoder.configure(format, surface, null, 0)
                 decoder.start()
+                // Fill the display without distorting the camera's aspect ratio.
+                // This crops the longer dimension when the screen and stream differ.
+                decoder.setVideoScalingMode(MediaCodec.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING)
                 val udp = DatagramSocket(null)
                 socket = udp
                 udp.reuseAddress = true
